@@ -1,6 +1,28 @@
 
 * kwm
 
-  kwm (Knani's Window Manager) is a fork of dwm.
+  kwm (Knani's Window Manager) is an Emacs-like window manager.
+  
+  It's a fork of dwm.
 
-  This is still a work in progress.
+** Why another window manager
+   Because stumpwm is too much and ratpoison is clusterfuck.
+
+   That's why we need a [[https://suckless.org/][suckless]] window manager.
+
+   This doesn't have any "virtual desktops", groups, tags or any useless feature because Emacs users run most of the time Emacs and a browser (and sometimes a terminal emulator).
+   
+** Work to be done
+
+   - [ ] Add ability to do splits
+     - [ ] Add borders
+   - [ ] Add ability to select windows
+
+** There is a bug
+   
+   Open an issue in the bug tracker or email me and it will get fixed.
+
+** I want feature X
+   
+   I probably have no use for it so do it yourself.
+
