@@ -1,4 +1,5 @@
 #include <X11/Xatom.h>
+#include <unistd.h>
 #include <X11/Xft/Xft.h>
 #include <X11/Xlib.h>
 #include <X11/Xproto.h>
@@ -24,6 +25,8 @@
 #define LENGTH(X)               (sizeof X / sizeof X[0])
 #define INTERSECT(x,y,w,h,m)    (MAX(0, MIN((x)+(w),(m)->wx+(m)->ww) - MAX((x),(m)->wx)) \
                                * MAX(0, MIN((y)+(h),(m)->wy+(m)->wh) - MAX((y),(m)->wy)))
+#define CLEANMASK(mask)         (mask & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
+
 
 /* Enums */
 enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
@@ -62,11 +65,18 @@ struct Monitor {
 	Window barwin;
 };
 
+typedef union {
+	int i;
+	unsigned int ui;
+	float f;
+	const void *v;
+} Arg;
+
 typedef struct {
 	unsigned int mod;
 	KeySym keysym;
-	/* void (*func)(const Arg *); */
-	/* const Arg arg; */
+	void (*func)(const Arg *);
+	const Arg arg;
 } Key;
 
 /* Procedures */
@@ -86,6 +96,8 @@ static int getrootptr(int *, int *);
 static Monitor* recttomon(int, int, int, int);
 static Client* wintoclient(Window);
 static void grabkeys(void);
+static void spawn(const Arg *);
+static void toggleleader(const Arg *);
 
 /* static void cleanup(void); */
 
@@ -114,10 +126,33 @@ static Drw *drw;
 static Atom wmatom[WMLast], netatom[NetLast];
 static Cur *cursor[CurLast];
 static Monitor *mons, *selmon;
-
+static int leadertoggled = 0;
 
 /* Configuration file */
 #include "config.h"
+
+
+void
+toggleleader(const Arg *arg)
+{
+	leadertoggled = arg->i;
+	if (leadertoggled) XDefineCursor(dpy, root, cursor[CurLeaderKey]->cursor);
+	else XDefineCursor(dpy, root, cursor[CurNormal]->cursor);
+}
+
+void
+spawn(const Arg *arg)
+{
+	if (fork() == 0) {
+		if (dpy)
+			close(ConnectionNumber(dpy));
+		setsid();
+		execvp(((char **)arg->v)[0], (char **)arg->v);
+		fprintf(stderr, "kwm: execvp %s", ((char **)arg->v)[0]);
+		perror(" failed");
+		exit(EXIT_SUCCESS);
+	}
+}
 
 int
 xerrorstart(Display *dpy, XErrorEvent *ee)
@@ -389,7 +424,6 @@ void setup(void)
 	XDeleteProperty(dpy, root, netatom[NetClientList]);
 	/* select events */
 	wa.cursor = cursor[CurNormal]->cursor;
-	wa.cursor = cursor[CurLeaderKey]->cursor;
 	wa.event_mask = SubstructureRedirectMask|SubstructureNotifyMask
 		|ButtonPressMask|PointerMotionMask|EnterWindowMask
 		|LeaveWindowMask|StructureNotifyMask|PropertyChangeMask;
@@ -402,19 +436,18 @@ void setup(void)
 void
 grabkeys(void)
 {
-	/* updatenumlockmask(); */
-	{
-		unsigned int i, j;
-		unsigned int modifiers[] = { 0, LockMask, /* numlockmask, numlockmask|LockMask  */};
-		KeyCode code;
 
-		XUngrabKey(dpy, AnyKey, AnyModifier, root);
-		for (i = 0; i < LENGTH(keys); i++)
-			if ((code = XKeysymToKeycode(dpy, keys[i].keysym)))
-				for (j = 0; j < LENGTH(modifiers); j++)
-					XGrabKey(dpy, code, keys[i].mod | modifiers[j], root,
-						True, GrabModeAsync, GrabModeAsync);
-	}
+	unsigned int i, j;
+	unsigned int modifiers[] = { 0 }; /* For simplicity don't press other modifiers*/
+	KeyCode code;
+
+	XUngrabKey(dpy, AnyKey, AnyModifier, root);
+	for (i = 0; i < LENGTH(keys); i++)
+		if ((code = XKeysymToKeycode(dpy, keys[i].keysym)))
+			for (j = 0; j < LENGTH(modifiers); j++)
+				XGrabKey(dpy, code, keys[i].mod | modifiers[j], root,
+					 True, GrabModeAsync, GrabModeAsync);
+
 }
 
 
@@ -433,19 +466,28 @@ run(void)
 void
 keypress(XEvent *e)
 {
+	
 	unsigned int i;
 	KeySym keysym;
 	XKeyEvent *ev;
-	printf("Keypress event\n");
+	/* XSetWindowAttributes wa; */
+	int found = 0;
 	ev = &e->xkey;
 	
 	keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
-	printf("Here\n");
-	/* for (i = 0; i < LENGTH(keys); i++) */
-	/* 	if (keysym == keys[i].keysym */
-	/* 	&& CLEANMASK(keys[i].mod) == CLEANMASK(ev->state) */
-	/* 	&& keys[i].func) */
-	/* 		keys[i].func(&(keys[i].arg)); */
+	
+	if (leadertoggled == 1 || (keysym == LEADERKEY && CLEANMASK(ev->state) == LEADERMOD))
+		for (i = 0; i < LENGTH(keys); i++)
+			if (keysym == keys[i].keysym
+			    && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
+			    && keys[i].func) {
+				keys[i].func(&(keys[i].arg));
+				// because a key combo can have multiple actions
+				if (keys[i].func != &toggleleader) found = 1;
+			}
+				
+	Arg arg = {.i = 0};
+	if (found) toggleleader(&arg);
 }
 
 /* void */
