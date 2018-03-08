@@ -98,6 +98,7 @@ static Client* wintoclient(Window);
 static void grabkeys(void);
 static void spawn(const Arg *);
 static void toggleleader(const Arg *);
+static void banish(void);
 
 /* static void cleanup(void); */
 
@@ -138,6 +139,12 @@ toggleleader(const Arg *arg)
 	leadertoggled = arg->i;
 	if (leadertoggled) XDefineCursor(dpy, root, cursor[CurLeaderKey]->cursor);
 	else XDefineCursor(dpy, root, cursor[CurNormal]->cursor);
+}
+
+void
+banish(void)
+{
+	XWarpPointer(dpy, None, root, 0, 0, 0, 0, selmon->mx + selmon->mw - 2, selmon->my + selmon->mh - 2);
 }
 
 void
