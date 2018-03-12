@@ -79,6 +79,15 @@ typedef struct {
 	const Arg arg;
 } Key;
 
+
+typedef struct Keys Keys;
+
+struct Keys {
+	Keys *child;
+	Keys *siblings;
+	Key key;
+};
+
 /* Procedures */
 void die(const char *);
 static void checkotherwm();
@@ -101,6 +110,8 @@ static void toggleleader(const Arg *);
 static void banish(void);
 
 /* static void cleanup(void); */
+static void banish(const Arg *);
+static void quit(const Arg *);
 
 /* Variables */
 static Display *dpy;
@@ -127,22 +138,28 @@ static Drw *drw;
 static Atom wmatom[WMLast], netatom[NetLast];
 static Cur *cursor[CurLast];
 static Monitor *mons, *selmon;
-static int leadertoggled = 0;
 
 /* Configuration file */
 #include "config.h"
 
+static Keys *currkey = &keys;
+
+
+void
+quit(const Arg *arg)
+{
+	running = 0;
+}
 
 void
 toggleleader(const Arg *arg)
 {
-	leadertoggled = arg->i;
-	if (leadertoggled) XDefineCursor(dpy, root, cursor[CurLeaderKey]->cursor);
+	if (arg->i) XDefineCursor(dpy, root, cursor[CurLeaderKey]->cursor);
 	else XDefineCursor(dpy, root, cursor[CurNormal]->cursor);
 }
 
 void
-banish(void)
+banish(const Arg *arg)
 {
 	XWarpPointer(dpy, None, root, 0, 0, 0, 0, selmon->mx + selmon->mw - 2, selmon->my + selmon->mh - 2);
 }
@@ -348,6 +365,13 @@ wintomon(Window w)
 }
 
 int
+xerrordummy(Display *dpy, XErrorEvent *ee)
+{
+	return 0;
+}
+
+
+int
 getrootptr(int *x, int *y)
 {
 	int di;
@@ -444,17 +468,19 @@ void
 grabkeys(void)
 {
 
-	unsigned int i, j;
+	unsigned int i;
 	unsigned int modifiers[] = { 0 }; /* For simplicity don't press other modifiers*/
 	KeyCode code;
 
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
-	for (i = 0; i < LENGTH(keys); i++)
-		if ((code = XKeysymToKeycode(dpy, keys[i].keysym)))
-			for (j = 0; j < LENGTH(modifiers); j++)
-				XGrabKey(dpy, code, keys[i].mod | modifiers[j], root,
+	Keys *node = currkey;
+	while (node) {
+		if ((code = XKeysymToKeycode(dpy, node->key.keysym)))
+			for (i = 0; i < LENGTH(modifiers); i++)
+				XGrabKey(dpy, code, node->key.mod | modifiers[i], root,
 					 True, GrabModeAsync, GrabModeAsync);
-
+		node = node->siblings;
+	}
 }
 
 
@@ -473,29 +499,27 @@ run(void)
 void
 keypress(XEvent *e)
 {
-	
 	unsigned int i;
 	KeySym keysym;
 	XKeyEvent *ev;
-	/* XSetWindowAttributes wa; */
-	int found = 0;
+
 	ev = &e->xkey;
-	
 	keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
-	
-	if (leadertoggled == 1 || (keysym == LEADERKEY && CLEANMASK(ev->state) == LEADERMOD))
-		for (i = 0; i < LENGTH(keys); i++)
-			if (keysym == keys[i].keysym
-			    && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
-			    && keys[i].func) {
-				keys[i].func(&(keys[i].arg));
-				// because a key combo can have multiple actions
-				if (keys[i].func != &toggleleader) found = 1;
-			}
-				
-	Arg arg = {.i = 0};
-	if (found) toggleleader(&arg);
+	Keys *node = currkey;
+	while (node) {
+		if (keysym == node->key.keysym && CLEANMASK(node->key.mod) == CLEANMASK(ev->state) && node->key.func) {
+			node->key.func(&(node->key.arg));
+			currkey = node->child;
+		}
+		node = node->siblings;
+	}
+	if (currkey == NULL) {
+		toggleleader(&(Arg){.i = 0});
+		currkey = &keys;
+	}
+	grabkeys();
 }
+
 
 /* void */
 /* cleanup(void) */
