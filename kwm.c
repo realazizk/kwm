@@ -154,8 +154,10 @@ quit(const Arg *arg)
 void
 toggleleader(const Arg *arg)
 {
-	if (arg->i) XDefineCursor(dpy, root, cursor[CurLeaderKey]->cursor);
-	else XDefineCursor(dpy, root, cursor[CurNormal]->cursor);
+	if (arg->i) XGrabPointer(dpy, root, True, 0,
+				  GrabModeAsync, GrabModeAsync,
+				  None, cursor[CurLeaderKey]->cursor, CurrentTime);
+	else XUngrabPointer(dpy, CurrentTime);
 }
 
 void
