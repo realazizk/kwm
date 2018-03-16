@@ -6,6 +6,7 @@ static const char *fonts[] = { "monospace:size=10" };
 
 static const char *dmenucmd[] = { "dmenu_run", NULL };
 static const char *termcmd[]  = { "st", NULL };
+static const int borderpx = 2;
 
 static Keys keys = {
 	&(Keys){NULL,	     
@@ -13,7 +14,13 @@ static Keys keys = {
 			&(Keys){NULL,
 				&(Keys){NULL,
 					&(Keys){NULL,
-						NULL,
+						&(Keys){NULL,
+							&(Keys) {NULL,
+								 &(Keys){NULL,
+									 NULL,
+									 {NOMODIFIER, XK_m, prevclient, {0}}},
+								 {NOMODIFIER, XK_n, nextclient, {0}}}, /* C-t n */
+							{ShiftMask, XK_k, killclient, {0}}}, /* C-t K */
 						{NOMODIFIER, XK_q, quit, {0}}}, /* C-t q */
 					{LEADERMOD, XK_g, toggleleader, {.i = 0}}}, /* C-t C-g */
 				{NOMODIFIER, XK_b, banish, {0}}}, /* C-t b */
