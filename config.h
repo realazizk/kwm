@@ -18,7 +18,7 @@ static Keys keys = {
 							&(Keys) {NULL,
 								 &(Keys){NULL,
 									 NULL,
-									 {NOMODIFIER, XK_m, prevclient, {0}}},
+									 {NOMODIFIER, XK_m, prevclient, {0}}}, /* C-t m */
 								 {NOMODIFIER, XK_n, nextclient, {0}}}, /* C-t n */
 							{ShiftMask, XK_k, killclient, {0}}}, /* C-t K */
 						{NOMODIFIER, XK_q, quit, {0}}}, /* C-t q */

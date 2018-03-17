@@ -50,7 +50,7 @@ struct Client {
 	int basew, baseh, incw, inch, maxw, maxh, minw, minh;
 	int bw, oldbw;
 	int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen;
-	Client *next, *prev;
+	Client *next;
 	Monitor *mon;
 	Window win;
 };
@@ -132,7 +132,7 @@ static void destroynotify(XEvent *);
 static void enternotify(XEvent *);
 static void nextclient(const Arg *);
 static void prevclient(const Arg *);
-
+static void focusin(XEvent *);
 
 /* Variables */
 static Display *dpy;
@@ -142,7 +142,8 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[MapRequest] = maprequest,
 	[UnmapNotify] = unmapnotify,
 	[DestroyNotify] = destroynotify,
-	[EnterNotify] = enternotify,	
+	[EnterNotify] = enternotify,
+	[FocusIn] = focusin,
 };
 
 static const char broken[] = "broken";
@@ -154,7 +155,7 @@ static Drw *drw;
 static Atom wmatom[WMLast], netatom[NetLast];
 static Cur *cursor[CurLast];
 static Monitor *mons, *selmon;
-static Client *currclient;
+
 
 /* Configuration file */
 #include "config.h"
@@ -195,6 +196,13 @@ spawn(const Arg *arg)
 		perror(" failed");
 		exit(EXIT_SUCCESS);
 	}
+}
+
+void
+focusin(XEvent *e)
+{
+	XFocusChangeEvent *ev = &e->xfocus;
+	/* TODO:  */
 }
 
 int
@@ -474,7 +482,6 @@ void setup(void)
 	XChangeWindowAttributes(dpy, root, CWEventMask|CWCursor, &wa);
 	XSelectInput(dpy, root, wa.event_mask);
 	grabkeys();
-	/* focus(NULL); */
 }
 
 void
@@ -563,7 +570,6 @@ unmanage(Client *c, int destroyed)
 	}
 	free(c);
 	updateclientlist();
-	/* focus(NULL); */
 }
 
 void
@@ -694,7 +700,6 @@ sendevent(Client *c, Atom proto)
 	return exists;
 }
 
-
 void
 killclient(const Arg *arg)
 {
@@ -734,15 +739,23 @@ configure(Client *c)
 void
 nextclient(const Arg *arg)
 {
-	if (currclient->next)
-		focus(currclient->next);
+	Client *c;
+	if (!selmon->sel) return;
+	if (selmon->sel == selmon->clients)
+		for (c = selmon->clients; c->next; c = c->next);
+	else
+		for (c = selmon->clients; c->next != selmon->sel ; c = c->next);
+	focus(c);
 }
 
 void
 prevclient(const Arg *arg)
 {
-	if (currclient->prev)
-		focus(currclient->prev);
+	if (!selmon->sel) return;
+	if (selmon->sel->next)
+		focus(selmon->sel->next);
+	else
+		focus(selmon->clients);
 }
 
 
@@ -791,7 +804,6 @@ manage(Window w, XWindowAttributes *wa)
 	if (c->isfloating)
 		XRaiseWindow(dpy, c->win);
 	attach(c);
-	/* attachstack(c); */
 	XChangeProperty(dpy, root, netatom[NetClientList], XA_WINDOW, 32, PropModeAppend,
 		(unsigned char *) &(c->win), 1);
 
@@ -802,7 +814,6 @@ manage(Window w, XWindowAttributes *wa)
 	c->mon->sel = c;
 	XMapWindow(dpy, c->win);
 	focus(c);
-	currclient = c;
 }
 
 void
@@ -852,11 +863,10 @@ updatewmhints(Client *c)
 	}
 }
 
-
-void attach(Client *c) {
+void
+attach(Client *c) {
+	/* FIXME: Use an LL instead of stack */
 	c->next = c->mon->clients;
-	/* FIXME:  */
-	c->prev = c->mon->clients;
 	c->mon->clients = c;
 }
 
@@ -882,16 +892,14 @@ void
 focus(Client *c)
 {
 	if (!c) return;
-	if (currclient != c) unfocus(c, 0);
-	/* if (!c->neverfocus) { */
+	if (selmon->sel != c) unfocus(c, 0);
 	XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
 	XChangeProperty(dpy, root, netatom[NetActiveWindow],
 			XA_WINDOW, 32, PropModeReplace,
 			(unsigned char *) &(c->win), 1);
-	/* }        */
 	sendevent(c, wmatom[WMTakeFocus]);
 	selmon->sel = c;
-	currclient = c;
+	XRaiseWindow(dpy, c->win);
 }
 
 void
@@ -905,7 +913,7 @@ resizeclient(Client *c, int x, int y, int w, int h)
 	c->oldh = c->h; c->h = wc.height = h;
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, c->win, CWX|CWY|CWWidth|CWHeight|CWBorderWidth, &wc);
-	/* configure(c); */
+	configure(c);
 	XSync(dpy, False);
 }
 
