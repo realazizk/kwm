@@ -134,6 +134,8 @@ static void nextclient(const Arg *);
 static void prevclient(const Arg *);
 static void focusin(XEvent *);
 static void configurenotify(XEvent *);
+static void prevframe(const Arg *);
+static void nextframe(const Arg *);
 
 /* Variables */
 static Display *dpy;
@@ -787,6 +789,32 @@ prevclient(const Arg *arg)
 		focus(selmon->clients);
 }
 
+void
+nextframe(const Arg *arg)
+{
+	/* FIXME: Operate on frames not on monitors */
+
+	Monitor *m;
+
+	if (selmon->next) m = selmon->next;
+	else m = mons;
+	selmon = m;
+	focus(NULL);
+}
+
+void
+prevframe(const Arg *arg)
+{
+	/* FIXME: Operate on frames not on monitors */
+
+	Monitor *m;
+	
+	if (selmon->next) m = selmon->next;
+	else m = mons;
+	unfocus(selmon->sel, 0);
+	selmon = m;
+	focus(NULL);
+}
 
 void
 manage(Window w, XWindowAttributes *wa)
