@@ -830,7 +830,7 @@ manage(Window w, XWindowAttributes *wa)
 	Client *c, *t = NULL;
 	Window trans = None;
 	XWindowChanges wc;
-
+	
 	c = ecalloc(1, sizeof(Client));
 	c->win = w;
 	/* geometry */
@@ -873,12 +873,10 @@ manage(Window w, XWindowAttributes *wa)
 		(unsigned char *) &(c->win), 1);
 
 	resize(c, c->mon->wx, c->mon->wy, c->mon->ww - 2 * c->bw, c->mon->wh - 2 * c->bw, 0);
-	
 	setclientstate(c, NormalState);
-
-	c->mon->sel = c;
 	XMapWindow(dpy, c->win);
-	focus(c);
+	focus(NULL);
+	c->mon->sel = c;
 }
 
 void
