@@ -160,6 +160,7 @@ static Atom wmatom[WMLast], netatom[NetLast];
 static Cur *cursor[CurLast];
 static Monitor *mons, *selmon;
 static Client *lastclient;
+static int pointergrabbed;
 
 
 /* Configuration file */
@@ -204,6 +205,7 @@ configurenotify(XEvent *e)
 void
 toggleleader(const Arg *arg)
 {
+	pointergrabbed = arg->i;
 	if (arg->i) XGrabPointer(dpy, root, True, 0,
 				  GrabModeAsync, GrabModeAsync,
 				  None, cursor[CurLeaderKey]->cursor, CurrentTime);
@@ -888,12 +890,16 @@ enternotify(XEvent *e)
 	Monitor *m;
 	XCrossingEvent *ev = &e->xcrossing;
 
+	if (pointergrabbed)
+		return;
 	if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) && ev->window != root)
 		return;
 	c = wintoclient(ev->window);
 	m = c ? c->mon : wintomon(ev->window);
-	if (m != selmon)
+	if (m != selmon) {
+		unfocus(selmon->sel, 1);
 		selmon = m;
+	}
 	 else if (!c || c == selmon->sel)
 		return;
 	focus(c);
