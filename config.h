@@ -32,8 +32,6 @@ static Keys keys = {
 				{NOMODIFIER, XK_b, banish, {0}}}, /* C-t b */
 		 {NOMODIFIER, XK_c, spawn, {.v = termcmd}}}, /* C-t c */
 		{NOMODIFIER, XK_exclam, spawn, {.v = dmenucmd}}}, /* C-t ! */
-	&(Keys){NULL,
-		NULL, 	  
-		{LEADERMOD, XK_g, toggleleader, {.i = 0}}}, /* C-g */
+	NULL,
 	{LEADERMOD, LEADERKEY, toggleleader, {.i = 1}}	    /* C-t */
 };
