@@ -147,7 +147,6 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[UnmapNotify] = unmapnotify,
 	[DestroyNotify] = destroynotify,
 	[EnterNotify] = enternotify,
-	[FocusIn] = focusin,
 	[ConfigureNotify] = configurenotify,
 };
 
@@ -231,12 +230,6 @@ spawn(const Arg *arg)
 	}
 }
 
-void
-focusin(XEvent *e)
-{
-	XFocusChangeEvent *ev = &e->xfocus;
-	/* TODO:  */
-}
 
 int
 xerrorstart(Display *dpy, XErrorEvent *ee)
