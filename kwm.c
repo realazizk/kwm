@@ -136,6 +136,7 @@ static void focusin(XEvent *);
 static void configurenotify(XEvent *);
 static void prevframe(const Arg *);
 static void nextframe(const Arg *);
+static void selclient(const Arg *);
 
 /* Variables */
 static Display *dpy;
@@ -159,6 +160,7 @@ static Drw *drw;
 static Atom wmatom[WMLast], netatom[NetLast];
 static Cur *cursor[CurLast];
 static Monitor *mons, *selmon;
+static Client *lastclient;
 
 
 /* Configuration file */
@@ -787,6 +789,12 @@ prevclient(const Arg *arg)
 		focus(selmon->sel->next);
 	else
 		focus(selmon->clients);
+}
+
+void
+selclient(const Arg *arg)
+{
+	focus(lastclient);
 }
 
 void
