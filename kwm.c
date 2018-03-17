@@ -87,6 +87,7 @@ struct Keys {
 	Key key;
 };
 
+
 /* Procedures */
 
 void die(const char *);
@@ -889,7 +890,6 @@ enternotify(XEvent *e)
 	Client *c;
 	Monitor *m;
 	XCrossingEvent *ev = &e->xcrossing;
-
 	if (pointergrabbed)
 		return;
 	if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) && ev->window != root)
@@ -953,15 +953,25 @@ unfocus(Client *c, int setfocus)
 void
 focus(Client *c)
 {
-	if (!c) return;
-	if (selmon->sel != c) unfocus(c, 0);
-	XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
-	XChangeProperty(dpy, root, netatom[NetActiveWindow],
-			XA_WINDOW, 32, PropModeReplace,
-			(unsigned char *) &(c->win), 1);
-	sendevent(c, wmatom[WMTakeFocus]);
-	selmon->sel = c;
-	XRaiseWindow(dpy, c->win);
+	if (!c) c = selmon->clients;
+	if (selmon->sel && selmon->sel != c)
+		unfocus(selmon->sel, 0);
+	if (c) {		
+		if (c->mon != selmon)
+			selmon = c->mon;
+
+		lastclient = selmon->sel;
+		selmon->sel = c;
+		XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
+		XChangeProperty(dpy, root, netatom[NetActiveWindow],
+				XA_WINDOW, 32, PropModeReplace,
+				(unsigned char *) &(c->win), 1);
+		sendevent(c, wmatom[WMTakeFocus]);
+		XRaiseWindow(dpy, c->win);
+	} else {
+		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
+		XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
+	}
 }
 
 void
