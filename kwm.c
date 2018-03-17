@@ -133,6 +133,7 @@ static void enternotify(XEvent *);
 static void nextclient(const Arg *);
 static void prevclient(const Arg *);
 static void focusin(XEvent *);
+static void configurenotify(XEvent *);
 
 /* Variables */
 static Display *dpy;
@@ -144,6 +145,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[DestroyNotify] = destroynotify,
 	[EnterNotify] = enternotify,
 	[FocusIn] = focusin,
+	[ConfigureNotify] = configurenotify,
 };
 
 static const char broken[] = "broken";
@@ -168,6 +170,33 @@ quit(const Arg *arg)
 {
 	running = 0;
 }
+
+
+void
+configurenotify(XEvent *e)
+{
+	Monitor *m;
+	Client *c;
+	XConfigureEvent *ev = &e->xconfigure;
+	int dirty;
+	
+	/* TODO: updategeom handling sucks, needs to be simplified */
+	if (ev->window == root) {
+		dirty = (sw != ev->width || sh != ev->height);
+		sw = ev->width;
+		sh = ev->height;
+		if (updategeom() || dirty) {
+			drw_resize(drw, sw, sh);
+			for (m = mons; m; m = m->next) {
+				for (c = m->clients; c; c = c->next)
+					/* FIXME: fix this when add frames */
+					resizeclient(c, m->mx, m->my, m->mw, m->mh);
+			}
+			focus(NULL);
+		}
+	}
+}
+
 
 void
 toggleleader(const Arg *arg)
