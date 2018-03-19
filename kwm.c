@@ -826,7 +826,7 @@ nextframe(const Arg *arg)
 	if (selmon->next) m = selmon->next;
 	else m = mons;
 	selmon = m;
-	focus(NULL);
+	focus(selmon->sel);
 }
 
 void
@@ -840,7 +840,7 @@ prevframe(const Arg *arg)
 	else m = mons;
 	unfocus(selmon->sel, 0);
 	selmon = m;
-	focus(NULL);
+	focus(selmon->sel);
 }
 
 void
