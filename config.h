@@ -6,6 +6,9 @@ static const char *fonts[] = { "monospace:size=10" };
 
 static const char *dmenucmd[] = { "dmenu_run", NULL };
 static const char *termcmd[]  = { "st", NULL };
+/* static const char *chgcmd[]   = {"wmctrl -i -a $(wmctrl -l | wmctrl -l|awk '{$3=""; $2=""; print $0}'|dmenu -l 10|awk '{print $1}')", NULL};	 */
+static const char *emacs[] = { "emacs",  NULL, NULL, NULL, "Emacs" };
+static const char *browser[] = { "firefox", NULL, NULL, NULL, "Firefox-esr" };
 static const int borderpx = 2;
 
 static Keys keys = {
@@ -20,7 +23,11 @@ static Keys keys = {
 									 &(Keys){NULL,
 										 &(Keys){NULL,
 											 &(Keys){NULL,
-												 NULL,
+												 &(Keys){NULL,
+													 &(Keys){NULL,
+														 NULL,
+														 {LEADERMOD, XK_f, runorraise, {.v = browser}}}, /* C-t C-f */
+													 {LEADERMOD, XK_e, runorraise, {.v = emacs}}}, /* C-t C-e */
 												 {LEADERMOD, XK_t, selclient, {0}}}, /* C-t C-t */
 											 ShiftMask, XK_o, prevframe, {0}}, /* C-t O */
 										 {NOMODIFIER, XK_o, nextframe, {0}}}, /* C-t o */

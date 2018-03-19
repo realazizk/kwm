@@ -138,6 +138,7 @@ static void configurenotify(XEvent *);
 static void prevframe(const Arg *);
 static void nextframe(const Arg *);
 static void selclient(const Arg *);
+static void runorraise(const Arg *);
 
 /* Variables */
 static Display *dpy;
@@ -613,6 +614,28 @@ updateclientlist()
 			XChangeProperty(dpy, root, netatom[NetClientList],
 				XA_WINDOW, 32, PropModeAppend,
 				(unsigned char *) &(c->win), 1);
+}
+
+
+void
+runorraise(const Arg *arg)
+{
+	char *app = ((char **)arg->v)[4];
+	Arg a = { .ui = ~0 };
+	Monitor *mon;
+	Client *c;
+	XClassHint hint = { NULL, NULL };
+	for (mon = mons; mon; mon = mon->next) {
+		for (c = mon->clients; c; c = c->next) {
+			XGetClassHint(dpy, c->win, &hint);
+			if (hint.res_class && strcmp(app, hint.res_class) == 0) {
+				focus(c);
+				XRaiseWindow(dpy, c->win);
+				return;
+			}
+		}
+	}
+	spawn(arg);
 }
 
 
