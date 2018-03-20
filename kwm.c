@@ -29,6 +29,7 @@
 #define WIDTH(X)                ((X)->w + 2 * (X)->bw)
 #define HEIGHT(X)               ((X)->h + 2 * (X)->bw)
 
+#define ColBorder               2
 
 /* Enums */
 enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
@@ -36,6 +37,7 @@ enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
        NetWMWindowTypeDialog, NetClientList, NetLast }; /* EWMH atoms */
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
 enum { CurNormal, CurLeaderKey, CurResize, CurMove, CurLast }; /* cursor */
+enum { SchemeNorm, SchemeSel }; /* color schemes */
 
 /* Data structures */
 typedef struct Client  Client;
@@ -141,6 +143,8 @@ static void selclient(const Arg *);
 static void runorraise(const Arg *);
 
 /* Variables */
+
+static Clr **scheme;
 static Display *dpy;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static void (*handler[LASTEvent]) (XEvent *) = {
@@ -459,6 +463,8 @@ void setup(void)
 	XSetWindowAttributes wa;
 	Atom utf8string;
 
+	int i;
+	
 	/* clean up any zombies immediately */
 	sigchld(0);
 
@@ -491,6 +497,11 @@ void setup(void)
 	cursor[CurResize] = drw_cur_create(drw, XC_sizing);
 	cursor[CurMove] = drw_cur_create(drw, XC_fleur);
 	cursor[CurLeaderKey] = drw_cur_create(drw, XC_icon);
+
+	/* Init colors */
+	scheme = ecalloc(LENGTH(colors), sizeof(Clr *));
+	for (i = 0; i < LENGTH(colors); i++)
+		scheme[i] = drw_scm_create(drw, colors[i], 3);
 	
 	/* supporting window for NetWMCheck */
 	wmcheckwin = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, 0, 0);
@@ -878,7 +889,7 @@ manage(Window w, XWindowAttributes *wa)
 
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
-	/* XSetWindowBorder(dpy, w, scheme[SchemeNorm][ColBorder].pixel); */
+	XSetWindowBorder(dpy, w, scheme[SchemeNorm][ColBorder].pixel);
 	configure(c); /* propagates border_width, if size doesn't change */
 	updatewmhints(c);
 	XSelectInput(dpy, w, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
@@ -967,6 +978,7 @@ unfocus(Client *c, int setfocus)
 {
 	if (!c)
 		return;
+	XSetWindowBorder(dpy, c->win, scheme[SchemeNorm][ColBorder].pixel);
 	if (setfocus) {
 		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
 		XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
@@ -990,6 +1002,7 @@ focus(Client *c)
 				XA_WINDOW, 32, PropModeReplace,
 				(unsigned char *) &(c->win), 1);
 		sendevent(c, wmatom[WMTakeFocus]);
+		XSetWindowBorder(dpy, c->win, scheme[SchemeSel][ColBorder].pixel);
 		XRaiseWindow(dpy, c->win);
 	} else {
 		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
@@ -1025,6 +1038,8 @@ cleanup(void)
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
 	for (i = 0; i < CurLast; i++)
 		drw_cur_free(drw, cursor[i]);
+	for (i = 0; i < LENGTH(colors); i++)
+		free(scheme[i]);
 	XDestroyWindow(dpy, wmcheckwin);
 	drw_free(drw);
 	XSync(dpy, False);
