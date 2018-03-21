@@ -967,7 +967,6 @@ manage(Window w, XWindowAttributes *wa)
 	updatewindowtype(c);
 	updatewmhints(c);
 	XSelectInput(dpy, w, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
-	XSetWMHints(dpy, c->win, XGetWMHints(dpy, c->win));
 	
 	if (!c->isfloating) {
 		resize(c, c->mon->wx, c->mon->wy, c->mon->ww - 2 * c->bw, c->mon->wh - 2 * c->bw, 0);
