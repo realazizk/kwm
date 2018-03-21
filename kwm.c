@@ -28,7 +28,6 @@
 #define CLEANMASK(mask)         (mask & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
 #define WIDTH(X)                ((X)->w + 2 * (X)->bw)
 #define HEIGHT(X)               ((X)->h + 2 * (X)->bw)
-
 #define ColBorder               2
 
 /* Enums */
@@ -92,7 +91,9 @@ struct Keys {
 
 /* Procedures */
 
-void die(const char *);
+static void clientmessage(XEvent *);
+static void setfullscreen(Client *, int);
+static void updatewindowtype(Client *);
 static void unmapnotify(XEvent *);
 static void updatewmhints(Client *);
 static void attach(Client *);
@@ -102,8 +103,8 @@ static void unmanage(Client *, int);
 static void updateclientlist();
 static void setclientstate(Client *, long);
 static void checkotherwm();
-static int xerrorstart(Display *dpy, XErrorEvent *ee);
-static int xerror(Display *dpy, XErrorEvent *ee);
+static int xerrorstart(Display *, XErrorEvent *);
+static int xerror(Display *, XErrorEvent *);
 static void setup(void);
 static void run(void);
 static void sigchld(int);
@@ -125,7 +126,7 @@ static int xerrordummy(Display *, XErrorEvent *);
 static void manage(Window, XWindowAttributes *);
 static void resize(Client *, int, int, int, int, int);
 static void resizeclient(Client *c, int x, int y, int w, int h);
-static int applysizehints(Client *c, int *x, int *y, int *w, int *h, int interact);
+static int applysizehints(Client *, int *, int *, int *, int *, int);
 static void configure(Client *);
 static int sendevent(Client *, Atom);
 static void killclient(const Arg *);
@@ -141,6 +142,8 @@ static void prevframe(const Arg *);
 static void nextframe(const Arg *);
 static void selclient(const Arg *);
 static void runorraise(const Arg *);
+static Atom getatomprop(Client *, Atom);
+static void configurerequest(XEvent *e);
 
 /* Variables */
 
@@ -154,6 +157,8 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[DestroyNotify] = destroynotify,
 	[EnterNotify] = enternotify,
 	[ConfigureNotify] = configurenotify,
+	[ClientMessage] = clientmessage,
+	[ConfigureRequest] = configurerequest,
 };
 
 static const char broken[] = "broken";
@@ -179,6 +184,22 @@ void
 quit(const Arg *arg)
 {
 	running = 0;
+}
+
+Atom
+getatomprop(Client *c, Atom prop)
+{
+	int di;
+	unsigned long dl;
+	unsigned char *p = NULL;
+	Atom da, atom = None;
+
+	if (XGetWindowProperty(dpy, c->win, prop, 0L, sizeof atom, False, XA_ATOM,
+		&da, &di, &dl, &dl, &p) == Success && p) {
+		atom = *(Atom *)p;
+		XFree(p);
+	}
+	return atom;
 }
 
 
@@ -462,7 +483,6 @@ void setup(void)
 {
 	XSetWindowAttributes wa;
 	Atom utf8string;
-
 	int i;
 	
 	/* clean up any zombies immediately */
@@ -800,6 +820,58 @@ configure(Client *c)
 }
 
 void
+configurerequest(XEvent *e)
+{
+	Client *c;
+	Monitor *m;
+	XConfigureRequestEvent *ev = &e->xconfigurerequest;
+	XWindowChanges wc;
+
+	if ((c = wintoclient(ev->window))) {
+		if (ev->value_mask & CWBorderWidth)
+			c->bw = ev->border_width;
+		else if (c->isfloating) {
+			m = c->mon;
+			if (ev->value_mask & CWX) {
+				c->oldx = c->x;
+				c->x = m->mx + ev->x;
+			}
+			if (ev->value_mask & CWY) {
+				c->oldy = c->y;
+				c->y = m->my + ev->y;
+			}
+			if (ev->value_mask & CWWidth) {
+				c->oldw = c->w;
+				c->w = ev->width;
+			}
+			if (ev->value_mask & CWHeight) {
+				c->oldh = c->h;
+				c->h = ev->height;
+			}
+			if ((c->x + c->w) > m->mx + m->mw && c->isfloating)
+				c->x = m->mx + (m->mw / 2 - WIDTH(c) / 2); /* center in x direction */
+			if ((c->y + c->h) > m->my + m->mh && c->isfloating)
+				c->y = m->my + (m->mh / 2 - HEIGHT(c) / 2); /* center in y direction */
+			if ((ev->value_mask & (CWX|CWY)) && !(ev->value_mask & (CWWidth|CWHeight)))
+				configure(c);
+			XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
+		} else
+			configure(c);
+	} else {
+		wc.x = ev->x;
+		wc.y = ev->y;
+		wc.width = ev->width;
+		wc.height = ev->height;
+		wc.border_width = ev->border_width;
+		wc.sibling = ev->above;
+		wc.stack_mode = ev->detail;
+		XConfigureWindow(dpy, ev->window, ev->value_mask, &wc);
+	}
+	XSync(dpy, False);
+}
+
+
+void
 nextclient(const Arg *arg)
 {
 	Client *c;
@@ -836,6 +908,7 @@ nextframe(const Arg *arg)
 
 	if (selmon->next) m = selmon->next;
 	else m = mons;
+	unfocus(selmon->sel, 0);
 	selmon = m;
 	focus(selmon->sel);
 }
@@ -891,23 +964,88 @@ manage(Window w, XWindowAttributes *wa)
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
 	XSetWindowBorder(dpy, w, scheme[SchemeNorm][ColBorder].pixel);
 	configure(c); /* propagates border_width, if size doesn't change */
+	updatewindowtype(c);
 	updatewmhints(c);
 	XSelectInput(dpy, w, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
 	XSetWMHints(dpy, c->win, XGetWMHints(dpy, c->win));
-	if (!c->isfloating)
+	
+	if (!c->isfloating) {
+		resize(c, c->mon->wx, c->mon->wy, c->mon->ww - 2 * c->bw, c->mon->wh - 2 * c->bw, 0);
 		c->isfloating = c->oldstate = trans != None || c->isfixed;
-	if (c->isfloating)
+	}
+	
+	if (c->isfloating) {
 		XRaiseWindow(dpy, c->win);
+		resize(c, c->x, c->y, c->w, c->h, 0);
+	}
+		
 	attach(c);
 	XChangeProperty(dpy, root, netatom[NetClientList], XA_WINDOW, 32, PropModeAppend,
 		(unsigned char *) &(c->win), 1);
 
-	resize(c, c->mon->wx, c->mon->wy, c->mon->ww - 2 * c->bw, c->mon->wh - 2 * c->bw, 0);
+	
 	setclientstate(c, NormalState);
 	XMapWindow(dpy, c->win);
 	focus(NULL);
 	c->mon->sel = c;
 }
+
+void
+setfullscreen(Client *c, int fullscreen)
+{
+	if (fullscreen && !c->isfullscreen) {
+		XChangeProperty(dpy, c->win, netatom[NetWMState], XA_ATOM, 32,
+			PropModeReplace, (unsigned char*)&netatom[NetWMFullscreen], 1);
+		c->isfullscreen = 1;
+		c->oldstate = c->isfloating;
+		c->oldbw = c->bw;
+		c->bw = 0;
+		c->isfloating = 1;
+		resizeclient(c, c->mon->mx, c->mon->my, c->mon->mw, c->mon->mh);
+		XRaiseWindow(dpy, c->win);
+	} else if (!fullscreen && c->isfullscreen){
+		XChangeProperty(dpy, c->win, netatom[NetWMState], XA_ATOM, 32,
+			PropModeReplace, (unsigned char*)0, 0);
+		c->isfullscreen = 0;
+		c->isfloating = c->oldstate;
+		c->bw = c->oldbw;
+		c->x = c->oldx;
+		c->y = c->oldy;
+		c->w = c->oldw;
+		c->h = c->oldh;
+		resizeclient(c, c->x, c->y, c->w, c->h);
+	}
+}
+
+void
+clientmessage(XEvent *e)
+{
+	XClientMessageEvent *cme = &e->xclient;
+	Client *c = wintoclient(cme->window);
+
+	if (!c)
+		return;
+	if (cme->message_type == netatom[NetWMState]) {
+		if (cme->data.l[1] == netatom[NetWMFullscreen]
+		|| cme->data.l[2] == netatom[NetWMFullscreen])
+			setfullscreen(c, (cme->data.l[0] == 1 /* _NET_WM_STATE_ADD    */
+				|| (cme->data.l[0] == 2 /* _NET_WM_STATE_TOGGLE */ && !c->isfullscreen)));
+	}
+}
+
+
+void
+updatewindowtype(Client *c)
+{
+	Atom state = getatomprop(c, netatom[NetWMState]);
+	Atom wtype = getatomprop(c, netatom[NetWMWindowType]);
+
+	if (state == netatom[NetWMFullscreen])
+		setfullscreen(c, 1);
+	if (wtype == netatom[NetWMWindowTypeDialog])
+		c->isfloating = 1;
+}
+
 
 void
 destroynotify(XEvent *e)
@@ -1001,6 +1139,7 @@ focus(Client *c)
 		XChangeProperty(dpy, root, netatom[NetActiveWindow],
 				XA_WINDOW, 32, PropModeReplace,
 				(unsigned char *) &(c->win), 1);
+		
 		sendevent(c, wmatom[WMTakeFocus]);
 		XSetWindowBorder(dpy, c->win, scheme[SchemeSel][ColBorder].pixel);
 		XRaiseWindow(dpy, c->win);
