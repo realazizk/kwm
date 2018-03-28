@@ -4,18 +4,19 @@ static const char *fonts[] = { "monospace:size=10" };
 #define LEADERMOD ControlMask
 #define LEADERKEY XK_t
 
-static const char *dmenucmd[] = { "dmenu_run", NULL };
-static const char *termcmd[]  = { "st", NULL };
-/* static const char *chgcmd[]   = {"wmctrl -i -a $(wmctrl -l | wmctrl -l|awk '{$3=""; $2=""; print $0}'|dmenu -l 10|awk '{print $1}')", NULL};	 */
-static const char *emacs[] = { "emacs",  NULL, NULL, NULL, "Emacs" };
-static const char *browser[] = { "firefox", NULL, NULL, NULL, "Firefox-esr" };
-static const int borderpx = 2;
+static const char *dmenucmd[] = {"dmenu_run", NULL };
+static const char *termcmd[]  = {"st", NULL };
+static const char *chgcmd[]   = {"dmenu", "-l", "10", NULL};
+static const char *emacs[]    = {"emacs",  NULL, NULL, NULL, "Emacs" };
+static const char *browser[]  = {"firefox", NULL, NULL, NULL, "Firefox-esr" };
+static const int borderpx     = 2;
+
 /* Colors */
 static const char col_gray1[]       = "#222222";
 static const char col_gray2[]       = "#444444";
 static const char col_gray3[]       = "#bbbbbb";
 static const char col_gray4[]       = "#eeeeee";
-static const char col_cyan[]        = "#005577";
+static const char col_cyan[]        = "#ffffff";
 static const char *colors[][3]      = {
 	/*               fg         bg         border   */
 	[SchemeNorm] = { col_gray3, col_gray1, col_gray2 },
@@ -52,7 +53,10 @@ static Keys keys = {
 		    {NULL,
 		     &(Keys)
 		     {NULL,
-		      NULL,
+		      &(Keys)
+		      {NULL,
+		       NULL,
+		       {NOMODIFIER, XK_k, stopclient, {0}}}, /* C-t k */
 		      {NOMODIFIER, XK_quotedbl, changeclient, {0}}}, /* C-t " */
 		     {LEADERMOD, XK_f, runorraise, {.v = browser}}}, /* C-t C-f */
 		    {LEADERMOD, XK_e, runorraise, {.v = emacs}}}, /* C-t C-e */
