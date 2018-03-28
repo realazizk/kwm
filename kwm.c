@@ -91,6 +91,7 @@ struct Keys {
 
 /* Procedures */
 
+static void unfocus(Client *, int);
 static void clientmessage(XEvent *);
 static void setfullscreen(Client *, int);
 static void updatewindowtype(Client *);
@@ -136,7 +137,6 @@ static void destroynotify(XEvent *);
 static void enternotify(XEvent *);
 static void nextclient(const Arg *);
 static void prevclient(const Arg *);
-static void focusin(XEvent *);
 static void configurenotify(XEvent *);
 static void prevframe(const Arg *);
 static void nextframe(const Arg *);
@@ -385,10 +385,7 @@ updategeom(void)
 				while ((c = m->clients)) {
 					dirty = 1;
 					m->clients = c->next;
-					/* detachstack(c); */
 					c->mon = mons;
-					/* attach(c); */
-					/* attachstack(c); */
 				}
 				if (m == selmon)
 					selmon = mons;
@@ -615,7 +612,6 @@ void
 unmanage(Client *c, int destroyed)
 {
 	XWindowChanges wc;
-
 
 	detach(c);
 	if (!destroyed) {
@@ -880,7 +876,7 @@ nextclient(const Arg *arg)
 		for (c = selmon->clients; c->next; c = c->next);
 	else
 		for (c = selmon->clients; c->next != selmon->sel ; c = c->next);
-	focus(c);
+	if (c) focus(c);
 }
 
 void
@@ -1050,6 +1046,7 @@ void
 destroynotify(XEvent *e)
 {
 	Client *c;
+
 	XDestroyWindowEvent *ev = &e->xdestroywindow;
 	if ((c = wintoclient(ev->window)))
 		unmanage(c, 1);
@@ -1099,7 +1096,8 @@ updatewmhints(Client *c)
 }
 
 void
-attach(Client *c) {
+attach(Client *c)
+{
 	/* FIXME: Use an LL instead of stack */
 	c->next = c->mon->clients;
 	c->mon->clients = c;
@@ -1130,10 +1128,10 @@ focus(Client *c)
 	if (!c) c = selmon->clients;
 	if (selmon->sel && selmon->sel != c)
 		unfocus(selmon->sel, 0);
-	if (c) {		
+	if (c) {
 		if (c->mon != selmon)
 			selmon = c->mon;
-
+		
 		lastclient = selmon->sel;
 		selmon->sel = c;
 		XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
