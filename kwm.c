@@ -131,6 +131,7 @@ static int applysizehints(Client *, int *, int *, int *, int *, int);
 static void configure(Client *);
 static int sendevent(Client *, Atom);
 static void killclient(const Arg *);
+static void stopclient(const Arg *);
 static int gettextprop(Window, Atom, char *, unsigned int);
 static void focus(Client *);
 static void destroynotify(XEvent *);
@@ -780,19 +781,23 @@ sendevent(Client *c, Atom proto)
 }
 
 void
-killclient(const Arg *arg)
+stopclient(const Arg *arg)
 {
 	if (!selmon->sel)
 		return;
-	if (!sendevent(selmon->sel, wmatom[WMDelete])) {
-		XGrabServer(dpy);
-		XSetErrorHandler(xerrordummy);
-		XSetCloseDownMode(dpy, DestroyAll);
-		XKillClient(dpy, selmon->sel->win);
-		XSync(dpy, False);
-		XSetErrorHandler(xerror);
-		XUngrabServer(dpy);
-	}
+	sendevent(selmon->sel, wmatom[WMDelete]);
+}
+
+void
+killclient(const Arg *arg)
+{
+	XGrabServer(dpy);
+	XSetErrorHandler(xerrordummy);
+	XSetCloseDownMode(dpy, DestroyAll);
+	XKillClient(dpy, selmon->sel->win);
+	XSync(dpy, False);
+	XSetErrorHandler(xerror);
+	XUngrabServer(dpy);
 }
 
 
