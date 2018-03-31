@@ -876,7 +876,7 @@ void
 nextclient(const Arg *arg)
 {
 	Client *c;
-	if (!selmon->sel) return;
+	if (!selmon->clients) return;
 	if (selmon->sel == selmon->clients)
 		for (c = selmon->clients; c->next; c = c->next);
 	else
