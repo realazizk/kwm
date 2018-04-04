@@ -606,6 +606,8 @@ detach(Client *c)
 
 	for (tc = &c->mon->clients; *tc && *tc != c; tc = &(*tc)->next);
 	*tc = c->next;
+	if (c == c->mon->sel)
+		c->mon->sel = c->next ? c->next : NULL;
 }
 
 
@@ -626,7 +628,7 @@ unmanage(Client *c, int destroyed)
 		XSetErrorHandler(xerror);
 		XUngrabServer(dpy);
 	}
-	free(c);
+	free(c);	
 	updateclientlist();
 }
 
