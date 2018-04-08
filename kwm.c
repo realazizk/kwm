@@ -626,8 +626,6 @@ detach(Client *c)
 
 	for (tc = &c->mon->clients; *tc && *tc != c; tc = &(*tc)->next);
 	*tc = c->next;
-	if (c == c->mon->sel)
-		c->mon->sel = c->next ? c->next : NULL;
 }
 
 
@@ -648,7 +646,8 @@ unmanage(Client *c, int destroyed)
 		XSetErrorHandler(xerror);
 		XUngrabServer(dpy);
 	}
-	free(c);	
+	focus(c->mon->sel);
+	free(c);
 	updateclientlist();
 }
 
@@ -680,7 +679,6 @@ runorraise(const Arg *arg)
 			XGetClassHint(dpy, c->win, &hint);
 			if (hint.res_class && strcmp(app, hint.res_class) == 0) {
 				focus(c);
-				XRaiseWindow(dpy, c->win);
 				return;
 			}
 		}
@@ -1008,8 +1006,8 @@ manage(Window w, XWindowAttributes *wa)
 	
 	setclientstate(c, NormalState);
 	XMapWindow(dpy, c->win);
-	focus(NULL);
 	c->mon->sel = c;
+	focus(NULL);
 }
 
 void
@@ -1152,22 +1150,23 @@ unfocus(Client *c, int setfocus)
 void
 focus(Client *c)
 {
-	if (!c) c = selmon->clients;
+	if (!c)
+		c = selmon->clients;
 	if (selmon->sel && selmon->sel != c)
 		unfocus(selmon->sel, 0);
 	if (c) {
 		if (c->mon != selmon)
 			selmon = c->mon;
-		
 		lastclient = selmon->sel;
 		selmon->sel = c;
-		XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
-		XChangeProperty(dpy, root, netatom[NetActiveWindow],
-				XA_WINDOW, 32, PropModeReplace,
-				(unsigned char *) &(c->win), 1);
-		
-		sendevent(c, wmatom[WMTakeFocus]);
 		XSetWindowBorder(dpy, c->win, scheme[SchemeSel][ColBorder].pixel);
+		if (!c->neverfocus) {
+			XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
+			XChangeProperty(dpy, root, netatom[NetActiveWindow],
+					XA_WINDOW, 32, PropModeReplace,
+					(unsigned char *) &(c->win), 1);
+		}
+		sendevent(c, wmatom[WMTakeFocus]);
 		XRaiseWindow(dpy, c->win);
 	} else {
 		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
