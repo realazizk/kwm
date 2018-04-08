@@ -105,6 +105,7 @@ static void updateclientlist();
 static void setclientstate(Client *, long);
 static void checkotherwm();
 static int xerrorstart(Display *, XErrorEvent *);
+static void focusin(XEvent *e);
 static int xerror(Display *, XErrorEvent *);
 static void setup(void);
 static void run(void);
@@ -155,6 +156,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[KeyPress] = keypress,
 	[MapRequest] = maprequest,
 	[UnmapNotify] = unmapnotify,
+	[FocusIn] = focusin,
 	[DestroyNotify] = destroynotify,
 	[EnterNotify] = enternotify,
 	[ConfigureNotify] = configurenotify,
@@ -201,6 +203,24 @@ getatomprop(Client *c, Atom prop)
 		XFree(p);
 	}
 	return atom;
+}
+
+
+void
+focusin(XEvent *e)
+{
+	XFocusChangeEvent *ev = &e->xfocus;
+
+	if (selmon->sel && ev->window != selmon->sel->win) {
+		if (!selmon->sel->neverfocus) {
+			XSetInputFocus(dpy, selmon->sel->win, RevertToPointerRoot, CurrentTime);
+			XChangeProperty(dpy, root, netatom[NetActiveWindow],
+					XA_WINDOW, 32, PropModeReplace,
+					(unsigned char *) &(selmon->sel->win), 1);
+		}
+		sendevent(selmon->sel, wmatom[WMTakeFocus]);
+	}
+		
 }
 
 
