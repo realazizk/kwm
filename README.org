@@ -1,24 +1,46 @@
 
 * kwm
 
-  kwm (Knani's Window Manager) is an Emacs-like window manager.
+  kwm (Knani's Window Manager) is an Emacs-like window manager. It's a fork of dwm.
   
-  It's a fork of dwm.
-
 ** Why another window manager
-   Because stumpwm is too much[fn:1] and ratpoison is clusterfuck[fn:2].
+   Because for me stumpWM is too much and ratpoison's code is clusterfuck.
    
    That's why we need a [[https://suckless.org/][suckless]] window manager.
-
    
-   This doesn't have any useless feature, because efficient Emacs users only run Emacs (and a web browsers).
+   This doesn't have any useless feature, because efficient Emacs users only run Emacs (and a web browser).
+
+   **Note: this is not affiliated in any way with suckless it just adheres to the philosophy**
 
 ** Work to be done
 
    - [ ] Add ability to do splits
    - [ ] Add ability to select windows using dmenu
    - [ ] Add a stack for history
-     
+ 
+** How does it look like?
+   
+   It's a window manager it doesn't look like anything. If you insist here is a scrot (not like the ones you see on r/unixporn )
+
+   [[file:2018-04-09-151533_1366x768_scrot.png]]
+
+** How to use this?
+
+
+   I offer no binaries but installing shouldn't be very hard on Linux
+
+   #+BEGIN_SRC sh
+     cd
+     git clone https://github.com/mohame-aziz/kwm.git
+     cd kwm
+     make
+     echo "exec $HOME/kwm/kwm" >> .xinitrc
+
+     startx
+   #+END_SRC
+   
+   Read the config file to know the keybindings but most the time I just clone stumpWM.
+
 ** There is a bug
    
    Open an issue in the bug tracker or email me and it will get fixed.
@@ -26,19 +48,3 @@
 ** I want feature X
    
    I probably have no use for it so do it yourself.
-
-** How to write features
-   
-   After writing the feature use the =startxephyr.sh= script or run kwm from another tty.
-   
-   #+BEGIN_SRC sh
-     startx /home/mo/code/kwm2/kwm 2>&1 > log.log && cat log.log
-   #+END_SRC
-
-* Footnotes
-
-[fn:1] Loading a whole Common Lisp system can be useful for big programs, this offers the ability to alter them in run time, I can't find how this is useful for a window manager.
-
-[fn:2] Look at the ratpoison source code it's clusterfuck and it's pretty much abandon-ware there is only one guy from France pusing code to it.
-
-
