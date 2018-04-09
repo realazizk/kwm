@@ -645,7 +645,10 @@ unmanage(Client *c, int destroyed)
 		XUngrabServer(dpy);
 	}
 	c->mon->sel = c->next;
-	focus(NULL);
+	if (lastclient && lastclient->mon == c->mon)
+		focus(lastclient);
+	else
+		focus(NULL);
 	free(c);
 	updateclientlist();
 }

@@ -16,9 +16,9 @@
 ** Work to be done
 
    - [ ] Add ability to do splits
-     - [ ] Add borders
-   - [ ] Add ability to select windows
-
+   - [ ] Add ability to select windows using dmenu
+   - [ ] Add a stack for history
+     
 ** There is a bug
    
    Open an issue in the bug tracker or email me and it will get fixed.
