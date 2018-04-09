@@ -136,7 +136,6 @@ static void stopclient(const Arg *);
 static int gettextprop(Window, Atom, char *, unsigned int);
 static void focus(Client *);
 static void destroynotify(XEvent *);
-static void enternotify(XEvent *);
 static void nextclient(const Arg *);
 static void prevclient(const Arg *);
 static void configurenotify(XEvent *);
@@ -158,7 +157,6 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[UnmapNotify] = unmapnotify,
 	[FocusIn] = focusin,
 	[DestroyNotify] = destroynotify,
-	[EnterNotify] = enternotify,
 	[ConfigureNotify] = configurenotify,
 	[ClientMessage] = clientmessage,
 	[ConfigureRequest] = configurerequest,
@@ -556,8 +554,8 @@ void setup(void)
 	/* select events */
 	wa.cursor = cursor[CurNormal]->cursor;
 	wa.event_mask = SubstructureRedirectMask|SubstructureNotifyMask
-		|ButtonPressMask|PointerMotionMask|EnterWindowMask
-		|LeaveWindowMask|StructureNotifyMask|PropertyChangeMask;
+		|ButtonPressMask|PointerMotionMask
+		|StructureNotifyMask|PropertyChangeMask;
 	XChangeWindowAttributes(dpy, root, CWEventMask|CWCursor, &wa);
 	XSelectInput(dpy, root, wa.event_mask);
 	grabkeys();
@@ -646,7 +644,8 @@ unmanage(Client *c, int destroyed)
 		XSetErrorHandler(xerror);
 		XUngrabServer(dpy);
 	}
-	focus(c->mon->sel);
+	c->mon->sel = c->next;
+	focus(NULL);
 	free(c);
 	updateclientlist();
 }
@@ -1076,30 +1075,6 @@ destroynotify(XEvent *e)
 	if ((c = wintoclient(ev->window)))
 		unmanage(c, 1);
 }
-
-void
-enternotify(XEvent *e)
-{
-	Client *c;
-	Monitor *m;
-	XCrossingEvent *ev = &e->xcrossing;
-	if (pointergrabbed)
-		return;
-	if (selmon->sel && selmon->sel->isfloating)
-		return;
-	if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) && ev->window != root)
-		return;
-	c = wintoclient(ev->window);
-	m = c ? c->mon : wintomon(ev->window);
-	if (m != selmon) {
-		unfocus(selmon->sel, 1);
-		selmon = m;
-	}
-	else if (!c || c == selmon->sel)
-		return;
-	focus(c);
-}
-
 
 void
 updatewmhints(Client *c)
