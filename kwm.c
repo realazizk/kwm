@@ -51,7 +51,7 @@ struct Client {
 	int basew, baseh, incw, inch, maxw, maxh, minw, minh;
 	int bw, oldbw;
 	int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen;
-	Client *next;
+	Client *next, *snext;
 	Monitor *mon;
 	Window win;
 };
@@ -171,7 +171,6 @@ static Drw *drw;
 static Atom wmatom[WMLast], netatom[NetLast];
 static Cur *cursor[CurLast];
 static Monitor *mons, *selmon;
-static Client *lastclient;
 static int pointergrabbed;
 
 
@@ -180,6 +179,7 @@ static int pointergrabbed;
 
 static Keys *currkey = &keys;
 
+static Client *lastclient;
 
 void
 quit(const Arg *arg)
@@ -626,6 +626,22 @@ detach(Client *c)
 	*tc = c->next;
 }
 
+void
+detachstack(Client *c)
+{
+	Client **tc, *t;
+
+	for (tc = &lastclient; *tc && *tc != c; tc = &(*tc)->snext);
+	*tc = c->snext;
+}
+
+
+void
+attachstack(Client *c)
+{
+	c->snext = lastclient;
+	lastclient = c;
+}
 
 void
 unmanage(Client *c, int destroyed)
@@ -633,6 +649,7 @@ unmanage(Client *c, int destroyed)
 	XWindowChanges wc;
 
 	detach(c);
+	detachstack(c);
 	if (!destroyed) {
 		wc.border_width = c->oldbw;
 		XGrabServer(dpy); /* avoid race conditions */
@@ -644,11 +661,7 @@ unmanage(Client *c, int destroyed)
 		XSetErrorHandler(xerror);
 		XUngrabServer(dpy);
 	}
-	c->mon->sel = c->next;
-	if (lastclient && lastclient->mon == c->mon)
-		focus(lastclient);
-	else
-		focus(NULL);
+	focus(NULL);
 	free(c);
 	updateclientlist();
 }
@@ -919,7 +932,8 @@ prevclient(const Arg *arg)
 void
 selclient(const Arg *arg)
 {
-	focus(lastclient);
+	if (lastclient && lastclient->snext)
+		focus(lastclient->snext);
 }
 
 void
@@ -933,7 +947,7 @@ nextframe(const Arg *arg)
 	else m = mons;
 	unfocus(selmon->sel, 0);
 	selmon = m;
-	focus(selmon->sel);
+	focus(NULL);
 }
 
 void
@@ -947,7 +961,7 @@ prevframe(const Arg *arg)
 	else m = mons;
 	unfocus(selmon->sel, 0);
 	selmon = m;
-	focus(selmon->sel);
+	focus(NULL);
 }
 
 void
@@ -1002,6 +1016,7 @@ manage(Window w, XWindowAttributes *wa)
 	}
 		
 	attach(c);
+	attachstack(c);
 	XChangeProperty(dpy, root, netatom[NetClientList], XA_WINDOW, 32, PropModeAppend,
 		(unsigned char *) &(c->win), 1);
 
@@ -1135,7 +1150,8 @@ focus(Client *c)
 	if (c) {
 		if (c->mon != selmon)
 			selmon = c->mon;
-		lastclient = selmon->sel;
+		detachstack(c);
+		attachstack(c);
 		selmon->sel = c;
 		XSetWindowBorder(dpy, c->win, scheme[SchemeSel][ColBorder].pixel);
 		if (!c->neverfocus) {
